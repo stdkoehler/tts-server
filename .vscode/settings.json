@@ -1,0 +1,32 @@
+{
+    "terminal.integrated.env.linux": {
+        "PYTHONPATH": "${workspaceFolder}"
+    },
+    "python.analysis.diagnosticMode": "workspace",
+    "python.envFile": "${workspaceFolder}/.env",
+    "mypy-type-checker.args": [
+        "--config-file=${workspaceFolder}/pyproject.toml"
+    ],
+    "mypy-type-checker.ignorePatterns": [
+        "**/tests/**/*.py",
+        "**/dev/**/*.py"
+    ],
+    "bandit.args": [
+        "--configfile=${workspaceFolder}/pyproject.toml"
+    ],
+    "pylint.ignorePatterns": [
+        "**/tests/*.py",
+        "**/tests/**/*.py",
+        "**/dev/**/*.py"
+    ],
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    "python.testing.pytestEnabled": false,
+    "pythonTestExplorer.testFramework": "pytest",
+    "files.insertFinalNewline": true,
+    "files.trimTrailingWhitespace": true,
+    "editor.formatOnSave": true
+}

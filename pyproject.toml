@@ -1,0 +1,92 @@
+[project]
+name = "tts-server"
+version = "1.0.0"
+description = ""
+authors = [{ name = "Stefan Koehler", email = "st.d.koehler@gmail.com" }]
+readme = "README.md"
+dynamic = ["dependencies", "requires-python"]
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.dependencies]
+uvicorn = { version = "0.34.1,<0.35.0", extras = ["standard"] }
+python = ">=3.12,<3.13"
+fastapi = ">=0.115.9,<0.116.0"
+coqui-tts = ">=0.26.0,<0.27.0"
+pydub = ">=0.25.1,<0.26.0"
+torch = { version = "*", source = "pytorch-cu118" }
+torchaudio = { version = "*", source = "pytorch-cu118" }
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.3.5,<8.4.0"
+mypy = ">=1.15.0,<1.16.0"
+pylint = ">=3.3.0,<3.4.0"
+bandit = ">=1.8.3,<1.9.0"
+
+[tool.poetry.group.test.dependencies]
+pytest-asyncio = ">=0.25.3,<0.26.0"
+pytest = ">=8.3.4,<9.0.0"
+pytest-env = ">=1.1.5,<2.0.0"
+pytest-cov = ">=6.1.0,<7.0.0"
+
+[tool.poetry.group.release.dependencies]
+# uvicorn-worker = ">=0.2.0,<0.3.0"
+gunicorn = ">=23.0.0,<24.0.0"
+
+[[tool.poetry.source]]
+name = "pytorch-cu118"
+url = "https://download.pytorch.org/whl/cu118"
+priority = "explicit"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.mypy]
+exclude = "tests/.*|dev/.*"
+plugins = [
+    "pydantic.mypy",
+    "numpy.typing.mypy_plugin",
+    "sqlalchemy.ext.mypy.plugin",
+]
+cache_dir = ".mypy_cache/normal"
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+show_error_codes = true
+show_column_numbers = true
+check_untyped_defs = true
+follow_imports = "silent"
+allow_redefinition = true
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = ["uvicorn.*", "regex.*"]
+ignore_missing_imports = true
+
+[tool.pylint]
+ignore = ["tests", "dev", ".poetry"]
+ignore-paths = ["tests", "dev", ".poetry"]
+disable = [
+    "too-few-public-methods",
+    "too-many-arguments",
+    "too-many-instance-attributes",
+    "too-many-locals",
+    "logging-fstring-interpolation",
+]
+good-names = ["i", "j", "k", "id", "t0", "t1", "ds"]
+ignored-classes = "FieldInfo"
+init-hook = 'import sys; sys.path.append(".")'
+
+[tool.bandit]
+exclude_dirs = ["tests", "dev"]
+
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "DEBUG"
+asyncio_default_fixture_loop_scope = "session"
+
+[tool.pytest_env]
+CREDENTIALS = ""
