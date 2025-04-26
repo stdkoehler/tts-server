@@ -194,6 +194,15 @@ class Model:
         """
         text = text.replace("*", "").replace("---", "").replace("\\", "")
         text = text.replace("\n", "<break />").replace("...", "<break />")
+
+        # Shadowrun terms
+        text = text.replace("IC", "ice")
+        text = text.replace("ICE", "ice")
+
+        # Transform all-capital words into letters separated by points
+        # (spell out the letters of abbreviations)
+        # text = re.sub(r"\b([A-Z]{2,})\b", lambda m: ".".join(m.group(1)), text)
+
         chunks = [
             chunk.strip()
             for chunk in text.split("<break />")
