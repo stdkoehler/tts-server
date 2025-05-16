@@ -14,6 +14,7 @@ uvicorn = { version = "0.34.1,<0.35.0", extras = ["standard"] }
 python = ">=3.12,<3.13"
 fastapi = ">=0.115.9,<0.116.0"
 coqui-tts = ">=0.26.0,<0.27.0"
+f5-tts = ">=1.1.4,<1.2.0"
 pydub = ">=0.25.1,<0.26.0"
 torch = { version = "*", source = "pytorch-cu118" }
 torchaudio = { version = "*", source = "pytorch-cu118" }
