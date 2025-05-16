@@ -47,10 +47,16 @@ async def text_to_speech_stream_webm(
     Streams synthesized Opus-in-WebM audio back to the client.
     Content-Type is audio/webm;codecs=opus.
     """
-    tts_model_container.coqui_model.load_model(prompt.model)
-    audio_gen = tts_model_container.coqui_model.inference_generator_webm_opus(
-        prompt.text
-    )
+    if prompt.model == "coqui":
+        tts_model_container.coqui_model.load_model(prompt.voice)
+        audio_gen = tts_model_container.coqui_model.inference_generator_webm_opus(
+            prompt.text
+        )
+    else:
+        tts_model_container.f5_model.load_model(prompt.voice)
+        audio_gen = tts_model_container.f5_model.inference_generator_webm_opus(
+            prompt.text
+        )
     return StreamingResponse(
         audio_gen,
         media_type="audio/webm;codecs=opus",

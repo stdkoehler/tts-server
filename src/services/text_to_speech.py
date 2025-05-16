@@ -260,6 +260,72 @@ class F5Model(BaseModel):
             self.output_path / "xtts.mp3", format="mp3", bitrate="320k"
         )
 
+    def inference_generator_webm_opus(self, text: str):
+        chunks = self._preprocess_text_and_chunks(text)
+
+        ffmpeg_cmd = [
+            "ffmpeg",
+            "-f",
+            "s16le",
+            "-ar",
+            "24000",
+            "-ac",
+            "1",
+            "-i",
+            "pipe:0",
+            "-c:a",
+            "libopus",
+            "-f",
+            "webm",
+            "-loglevel",
+            "error",
+            "pipe:1",
+        ]
+
+        ffmpeg_proc = subprocess.Popen(
+            ffmpeg_cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=0,
+        )
+
+        def write_audio():
+            try:
+                for chunk in chunks:
+                    print(chunk)
+                    out, _, _ = self._f5_model.infer(
+                        ref_file=self._ref_file,
+                        ref_text=self._ref_text,
+                        gen_text=chunk,
+                        file_wave=None,
+                        file_spec=None,
+                        seed=None,
+                    )
+                    wav = np.array(out)
+                    wav_int16 = np.int16(wav / np.max(np.abs(wav)) * 32767)
+                    ffmpeg_proc.stdin.write(wav_int16.tobytes())
+            except Exception as e:
+                print(f"Writer thread exception: {e}")
+            finally:
+                try:
+                    ffmpeg_proc.stdin.close()
+                except Exception:
+                    pass
+
+        writer_thread = threading.Thread(target=write_audio)
+        writer_thread.start()
+
+        try:
+            while True:
+                data = ffmpeg_proc.stdout.read(4096)
+                if not data:
+                    break
+                yield data
+        finally:
+            ffmpeg_proc.kill()
+            writer_thread.join()
+
 
 @dataclass
 class TtsModelContainer:
