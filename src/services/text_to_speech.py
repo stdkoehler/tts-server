@@ -123,6 +123,10 @@ class BaseModel(ABC):
                     wav = self._chunk_to_wav(chunk)
                     wav_int16 = np.int16(wav / np.max(np.abs(wav)) * 32767)
                     ffmpeg_proc.stdin.write(wav_int16.tobytes())
+                    # Add 700ms pause (silence) after each chunk
+                    pause_samples = int(0.7 * 24000)  # 700ms at 24kHz
+                    silence = np.zeros(pause_samples, dtype=np.int16)
+                    ffmpeg_proc.stdin.write(silence.tobytes())
             except Exception as e:
                 print(f"Writer thread exception: {e}")
             finally:
