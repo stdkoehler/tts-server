@@ -41,7 +41,12 @@ class BaseModel(ABC):
             List[str]: List of processed text chunks.
         """
         text = text.replace("*", "").replace("---", "").replace("\\", "")
-        text = text.replace("\n", "<break />").replace("...", "<break />")
+        text = (
+            text.replace("\n", "<break />")
+            .replace("...", "<break />")
+            .replace(":", "...")  # tts models prefer comma for pauses
+            .replace("…", "...")
+        )
 
         # Shadowrun terms
         text = text.replace("IC", "ice")
