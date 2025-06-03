@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.text_to_speech import router as speech_router
+from src.api.speech_to_text import router as stt_router
 from src.services.text_to_speech import TtsModelContainer, CoquiModel, F5Model
 from models.text_to_speech import TtsVoiceCoqui
 
@@ -49,3 +50,4 @@ app.add_middleware(
 
 
 app.include_router(speech_router)
+app.include_router(stt_router)

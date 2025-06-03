@@ -1,5 +1,9 @@
 # TTS Server
 
+## Todo
+- https://huggingface.co/spaces/hexgrad/Kokoro-TTS
+- https://huggingface.co/spaces/ResembleAI/Chatterbox
+
 ## Overview
 This project is a Text-to-Speech (TTS) server built using FastAPI and coqui. It provides endpoints for generating speech from text using pre-trained TTS models. The server supports both file-based and streaming audio responses.
 
