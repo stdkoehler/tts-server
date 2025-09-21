@@ -94,7 +94,7 @@ class BaseModel(ABC):
             combined_audio += seg
         combined_audio.export(output_path / filename, format="mp3", bitrate="320k")
 
-    def _stream_webm_opus(self, chunks):
+    def _stream_webm_opus(self, chunks, frame_rate: int = 24000):
         """
         Shared streaming logic for webm/opus output. chunk_to_wav_fn(chunk) -> np.ndarray
         """
@@ -103,7 +103,7 @@ class BaseModel(ABC):
             "-f",
             "s16le",
             "-ar",
-            "24000",
+            str(frame_rate),
             "-ac",
             "1",
             "-i",
@@ -131,7 +131,9 @@ class BaseModel(ABC):
                     wav_int16 = np.int16(wav / np.max(np.abs(wav)) * 32767)
                     ffmpeg_proc.stdin.write(wav_int16.tobytes())
                     # Add 700ms pause (silence) after each chunk
-                    pause_samples = int(0.7 * 24000)  # 700ms at 24kHz
+                    pause_samples = int(
+                        0.7 * frame_rate
+                    )  # 700ms at specified frame rate
                     silence = np.zeros(pause_samples, dtype=np.int16)
                     ffmpeg_proc.stdin.write(silence.tobytes())
             except Exception as e:
@@ -301,6 +303,11 @@ class VoxCpmModel(BaseModel):
         This reduces memory usage and speeds up computations, as gradients are not needed for TTS inference.
         """
         return torch.no_grad()
+
+    def inference_generator_webm_opus(self, text: str):
+        """Override to use 16kHz frame rate for VoxCPM"""
+        chunks = self._preprocess_text_and_chunks(text)
+        yield from self._stream_webm_opus(chunks, frame_rate=16000)
 
     def inference(self, text: str) -> None:
         """Override to use 16kHz frame rate for VoxCPM"""
