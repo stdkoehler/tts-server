@@ -26,10 +26,14 @@ async def text_to_speech(
         tts_model_container.coqui_model.load_model(prompt.voice)
         tts_model_container.coqui_model.inference(prompt.text)
         audio_file_path = tts_model_container.coqui_model.output_path / "xtts.mp3"
-    else:
+    elif prompt.model == "f5":
         tts_model_container.f5_model.load_model(prompt.voice)
         tts_model_container.f5_model.inference(prompt.text)
         audio_file_path = tts_model_container.f5_model.output_path / "xtts.mp3"
+    else:
+        tts_model_container.vox_cpm_model.load_model(prompt.voice)
+        tts_model_container.vox_cpm_model.inference(prompt.text)
+        audio_file_path = tts_model_container.vox_cpm_model.output_path / "xtts.mp3"
 
     print(audio_file_path)
     return FileResponse(
@@ -52,11 +56,17 @@ async def text_to_speech_stream_webm(
         audio_gen = tts_model_container.coqui_model.inference_generator_webm_opus(
             prompt.text
         )
-    else:
+    elif prompt.model == "f5":
         tts_model_container.f5_model.load_model(prompt.voice)
         audio_gen = tts_model_container.f5_model.inference_generator_webm_opus(
             prompt.text
         )
+    else:
+        tts_model_container.vox_cpm_model.load_model(prompt.voice)
+        audio_gen = tts_model_container.vox_cpm_model.inference_generator_webm_opus(
+            prompt.text
+        )
+
     return StreamingResponse(
         audio_gen,
         media_type="audio/webm;codecs=opus",

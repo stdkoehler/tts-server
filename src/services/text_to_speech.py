@@ -18,6 +18,8 @@ from TTS.tts.models.xtts import Xtts
 
 from f5_tts.api import F5TTS
 
+from voxcpm import VoxCPM
+
 from models.text_to_speech import TtsVoiceCoqui, TtsVoiceF5
 
 from src.services.splitter import improved_split_sentence
@@ -63,14 +65,14 @@ class BaseModel(ABC):
         ]
         return chunks
 
-    def _wav_to_segment(self, wav: np.ndarray) -> AudioSegment:
+    def _wav_to_segment(self, wav: np.ndarray, frame_rate: int = 24000) -> AudioSegment:
         """
         Convert a numpy wav array to a normalized int16 AudioSegment.
         """
         wav_int16 = np.int16(wav / np.max(np.abs(wav)) * 32767)
         segment = AudioSegment(
             wav_int16.tobytes(),
-            frame_rate=24000,
+            frame_rate=frame_rate,
             sample_width=2,  # int16
             channels=1,
         )
@@ -268,7 +270,69 @@ class F5Model(BaseModel):
         return np.array(out)
 
 
+class VoxCpmModel(BaseModel):
+    def __init__(self, output_path: Path, model_path: Path) -> None:
+        super().__init__(output_path, model_path)
+        self.ttsmodel: TtsVoiceF5 | None = None
+        self._ref_file: Path | None = None
+        self._ref_text: str | None = None
+        self._vox_cpm_model: VoxCPM | None = None
+
+    def load_model(self, ttsmodel: TtsVoiceF5) -> None:
+        self._ref_file = self.model_path / ttsmodel / "reference.wav"
+        with open(
+            self.model_path / ttsmodel / "reference.txt", "r", encoding="utf8"
+        ) as f:
+            reference_text = f.read()
+        self._ref_text = reference_text
+
+        if self.ttsmodel is not None and self.ttsmodel == ttsmodel:
+            print("Model already loaded")
+            return
+
+        self._vox_cpm_model = VoxCPM.from_pretrained("openbmb/VoxCPM-0.5B")
+
+        self.ttsmodel = ttsmodel
+        print("Model loaded")
+
+    def _inference_context(self):
+        """
+        Use torch.no_grad() to disable gradient calculation during inference.
+        This reduces memory usage and speeds up computations, as gradients are not needed for TTS inference.
+        """
+        return torch.no_grad()
+
+    def inference(self, text: str) -> None:
+        """Override to use 16kHz frame rate for VoxCPM"""
+        chunks = self._preprocess_text_and_chunks(text)
+        segments = []
+        with self._inference_context():
+            for chunk in chunks:
+                wav = self._chunk_to_wav(chunk)
+                segment = self._wav_to_segment(wav, frame_rate=16000)
+                segments.append(segment)
+        self._combine_and_export_segments(segments, self.output_path)
+
+    def _chunk_to_wav(self, chunk):
+        out = self._vox_cpm_model.generate(
+            text=chunk,
+            prompt_wav_path=str(
+                self._ref_file.absolute()
+            ),  # optional: path to a prompt speech for voice cloning
+            prompt_text=self._ref_text,  # optional: reference text
+            cfg_value=2.0,  # LM guidance on LocDiT, higher for better adherence to the prompt, but maybe worse
+            inference_timesteps=20,  # LocDiT inference timesteps, higher for better result, lower for fast speed
+            normalize=False,  # enable external TN tool
+            denoise=False,  # enable external Denoise tool
+            retry_badcase=False,  # enable retrying mode for some bad cases (unstoppable)
+            retry_badcase_max_times=3,  # maximum retrying times
+            retry_badcase_ratio_threshold=6.0,  # maximum length restriction for bad case detection (simple but effective), it could be adjusted for slow pace speech
+        )
+        return np.array(out)
+
+
 @dataclass
 class TtsModelContainer:
     coqui_model: CoquiModel
     f5_model: F5Model
+    vox_cpm_model: VoxCpmModel

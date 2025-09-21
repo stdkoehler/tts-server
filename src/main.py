@@ -8,7 +8,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.text_to_speech import router as speech_router
 from src.api.speech_to_text import router as stt_router
-from src.services.text_to_speech import TtsModelContainer, CoquiModel, F5Model
+from src.services.text_to_speech import (
+    TtsModelContainer,
+    CoquiModel,
+    F5Model,
+    VoxCpmModel,
+)
 from models.text_to_speech import TtsVoiceCoqui
 
 
@@ -25,9 +30,15 @@ async def lifespan(app: FastAPI):
 
     tts_f5_model = F5Model(output_path=output_path, model_path=model_path / "f5")
 
+    tts_vox_cpm_model = VoxCpmModel(
+        output_path=output_path, model_path=model_path / "f5"
+    )
+
     # Store the model in the application state
     app.state.tts_model_container = TtsModelContainer(
-        coqui_model=tts_coqui_model, f5_model=tts_f5_model
+        coqui_model=tts_coqui_model,
+        f5_model=tts_f5_model,
+        vox_cpm_model=tts_vox_cpm_model,
     )
 
     print("TTS model loaded and ready.")
