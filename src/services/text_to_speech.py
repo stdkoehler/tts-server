@@ -254,7 +254,7 @@ class F5Model(BaseModel):
         Use torch.no_grad() to disable gradient calculation during inference.
         This reduces memory usage and speeds up computations, as gradients are not needed for TTS inference.
         """
-        return (torch.no_grad(),)
+        return torch.no_grad()
 
     def _chunk_to_wav(self, chunk):
         out, _, _ = self._f5_model.infer(
