@@ -203,7 +203,7 @@ class CoquiModel(BaseModel):
             print("Model already loaded")
             return
 
-        voice_path = self.model_path / ttsmodel
+        voice_path = self.model_path / ttsmodel.value
 
         self._xtts_model.load_checkpoint(
             self._config, checkpoint_dir=voice_path
@@ -246,9 +246,9 @@ class F5Model(BaseModel):
         self._f5_model = F5TTS()
 
     def load_model(self, ttsmodel: TtsVoiceF5) -> None:
-        self._ref_file = self.model_path / ttsmodel / "reference.wav"
+        self._ref_file = self.model_path / ttsmodel.value / "reference.wav"
         with open(
-            self.model_path / ttsmodel / "reference.txt", "r", encoding="utf8"
+            self.model_path / ttsmodel.value / "reference.txt", "r", encoding="utf8"
         ) as f:
             reference_text = f.read()
         self._ref_text = reference_text
