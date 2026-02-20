@@ -1,0 +1,38 @@
+{
+    "name": "Python Dev Container",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "devcontainer",
+    "workspaceFolder": "/workspaces/tts-server",
+    "forwardPorts": [
+        8001
+    ],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                // needed extensions
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-python.isort",
+                "ms-python.debugpy",
+                "ms-python.pylint",
+                "ms-python.mypy-type-checker",
+                "ms-python.black-formatter",
+                "pycqa.bandit-pycqa",
+                // optional but highly recommended - keep them for easier setup
+                "github.copilot",
+                "github.copilot-chat",
+                "mhutchie.git-graph",
+                "tamasfe.even-better-toml",
+                "stdkoehler.python-debug-tools"
+            ]
+        }
+    },
+    "postCreateCommand": "cd /workspaces/tts-server && poetry install --no-root --with dev,test",
+    "remoteUser": "vscode",
+    "containerEnv": {
+        // we are using docker-compose for integration tests. Docker only has access
+        // to files on the host system, so we need to pass the workdspace folder. This
+        // will be used in the docker-compose file
+        "HOST_WORKSPACE_FOLDER": "${localWorkspaceFolder}",
+    }
+}
