@@ -13,8 +13,9 @@ package-mode = false
 uvicorn = { version = "0.34.1,<0.35.0", extras = ["standard"] }
 python = ">=3.11,<3.13"
 fastapi = ">=0.115.9,<0.116.0"
-coqui-tts = ">=0.26.0,<0.27.0"
+coqui-tts = ">=0.27.0,<0.28.0"
 f5-tts = ">=1.1.4,<1.2.0"
+qwen-tts = ">=0.1.1,<0.2.0"
 voxcpm = ">=1.0.3,<2.0.0"
 triton = { version = ">=3.0.0,<4.0.0", markers = "sys_platform == 'linux'" } # faster inference for VoxCPM
 pydub = ">=0.25.1,<0.26.0"

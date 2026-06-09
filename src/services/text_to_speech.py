@@ -18,6 +18,8 @@ from TTS.tts.models.xtts import Xtts
 
 from f5_tts.api import F5TTS
 
+from qwen_tts import Qwen3TTSModel
+
 from voxcpm import VoxCPM
 
 from models.text_to_speech import TtsVoiceCoqui, TtsVoiceF5
@@ -272,6 +274,47 @@ class F5Model(BaseModel):
         return np.array(out)
 
 
+class QwenTtsModel(BaseModel):
+    def __init__(self, output_path: Path, model_path: Path) -> None:
+        super().__init__(output_path, model_path)
+        self._ref_file: Path | None = None
+        self._ref_text: str | None = None
+        self._voice_clone_prompt: list | None = None
+        self._qwen_model = Qwen3TTSModel.from_pretrained(
+            "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+            device_map="cuda:0",
+            dtype=torch.bfloat16,
+        )
+
+    def load_model(self, ttsmodel: TtsVoiceF5) -> None:
+        self._ref_file = self.model_path / ttsmodel.value / "reference.wav"
+        with open(
+            self.model_path / ttsmodel.value / "reference.txt", "r", encoding="utf8"
+        ) as f:
+            reference_text = f.read()
+        self._ref_text = reference_text
+
+        self._voice_clone_prompt = self._qwen_model.create_voice_clone_prompt(
+            ref_audio=str(self._ref_file),
+            ref_text=self._ref_text,
+        )
+
+    def _inference_context(self):
+        """
+        Use torch.no_grad() to disable gradient calculation during inference.
+        This reduces memory usage and speeds up computations, as gradients are not needed for TTS inference.
+        """
+        return torch.no_grad()
+
+    def _chunk_to_wav(self, chunk):
+        wavs, _ = self._qwen_model.generate_voice_clone(
+            text=chunk,
+            language="English",
+            voice_clone_prompt=self._voice_clone_prompt,
+        )
+        return np.array(wavs[0])
+
+
 class VoxCpmModel(BaseModel):
     def __init__(self, output_path: Path, model_path: Path) -> None:
         super().__init__(output_path, model_path)
@@ -343,3 +386,4 @@ class TtsModelContainer:
     coqui_model: CoquiModel
     f5_model: F5Model
     vox_cpm_model: VoxCpmModel
+    qwen_model: QwenTtsModel
