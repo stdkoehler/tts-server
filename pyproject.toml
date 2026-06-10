@@ -16,11 +16,12 @@ fastapi = ">=0.115.9,<0.116.0"
 coqui-tts = ">=0.27.0,<0.28.0"
 f5-tts = ">=1.1.4,<1.2.0"
 qwen-tts = ">=0.1.1,<0.2.0"
+faster-qwen3-tts = ">=0.1.0"
 voxcpm = ">=1.0.3,<2.0.0"
 triton = { version = ">=3.0.0,<4.0.0", markers = "sys_platform == 'linux'" } # faster inference for VoxCPM
 pydub = ">=0.25.1,<0.26.0"
-torch = { version = "*", source = "pytorch-cu124" }
-torchaudio = { version = "*", source = "pytorch-cu124" }
+torch = { version = ">=2.7.0,<2.8.0", source = "pytorch-cu128" }
+torchaudio = { version = ">=2.7.0,<2.8.0", source = "pytorch-cu128" }
 openai-whisper = ">=20240930"
 
 [tool.poetry.group.dev.dependencies]
@@ -40,8 +41,8 @@ pytest-cov = ">=6.1.0,<7.0.0"
 gunicorn = ">=23.0.0,<24.0.0"
 
 [[tool.poetry.source]]
-name = "pytorch-cu124"
-url = "https://download.pytorch.org/whl/cu124"
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
 priority = "explicit"
 
 [build-system]

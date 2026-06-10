@@ -27,7 +27,7 @@
             ]
         }
     },
-    "postCreateCommand": "cd /workspaces/tts-server && poetry install --no-root --with dev,test",
+    "postCreateCommand": "cd /workspaces/tts-server && poetry install --no-root --with dev,test && poetry run pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.7cxx11abiTRUE-cp311-cp311-linux_x86_64.whl",
     "remoteUser": "vscode",
     "containerEnv": {
         // we are using docker-compose for integration tests. Docker only has access

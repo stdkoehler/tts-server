@@ -13,6 +13,7 @@ from src.services.text_to_speech import (
     CoquiModel,
     F5Model,
     QwenTtsModel,
+    QwenFastModel,
     VoxCpmModel,
 )
 from models.text_to_speech import TtsVoiceCoqui
@@ -39,12 +40,17 @@ async def lifespan(app: FastAPI):
         output_path=output_path, model_path=model_path / "f5"
     )
 
+    tts_qwen_fast_model = QwenFastModel(
+        output_path=output_path, model_path=model_path / "f5"
+    )
+
     # Store the model in the application state
     app.state.tts_model_container = TtsModelContainer(
         coqui_model=tts_coqui_model,
         f5_model=tts_f5_model,
         vox_cpm_model=tts_vox_cpm_model,
         qwen_model=tts_qwen_model,
+        qwen_fast_model=tts_qwen_fast_model,
     )
 
     print("TTS model loaded and ready.")

@@ -34,6 +34,10 @@ async def text_to_speech(
         tts_model_container.qwen_model.load_model(prompt.voice)
         tts_model_container.qwen_model.inference(prompt.text)
         audio_file_path = tts_model_container.qwen_model.output_path / "xtts.mp3"
+    elif prompt.model == "qwen_fast":
+        tts_model_container.qwen_fast_model.load_model(prompt.voice)
+        tts_model_container.qwen_fast_model.inference(prompt.text)
+        audio_file_path = tts_model_container.qwen_fast_model.output_path / "xtts.mp3"
     else:
         tts_model_container.vox_cpm_model.load_model(prompt.voice)
         tts_model_container.vox_cpm_model.inference(prompt.text)
@@ -68,6 +72,11 @@ async def text_to_speech_stream_webm(
     elif prompt.model == "qwen":
         tts_model_container.qwen_model.load_model(prompt.voice)
         audio_gen = tts_model_container.qwen_model.inference_generator_webm_opus(
+            prompt.text
+        )
+    elif prompt.model == "qwen_fast":
+        tts_model_container.qwen_fast_model.load_model(prompt.voice)
+        audio_gen = tts_model_container.qwen_fast_model.inference_generator_webm_opus(
             prompt.text
         )
     else:

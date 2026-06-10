@@ -19,6 +19,7 @@ from TTS.tts.models.xtts import Xtts
 from f5_tts.api import F5TTS
 
 from qwen_tts import Qwen3TTSModel
+from faster_qwen3_tts import FasterQwen3TTS
 
 from voxcpm import VoxCPM
 
@@ -285,6 +286,9 @@ class QwenTtsModel(BaseModel):
             device_map="cuda:0",
             dtype=torch.bfloat16,
         )
+        self._qwen_model.model = torch.compile(
+            self._qwen_model.model, mode="reduce-overhead"
+        )
 
     def load_model(self, ttsmodel: TtsVoiceF5) -> None:
         self._ref_file = self.model_path / ttsmodel.value / "reference.wav"
@@ -311,6 +315,7 @@ class QwenTtsModel(BaseModel):
             text=chunk,
             language="English",
             voice_clone_prompt=self._voice_clone_prompt,
+            max_new_tokens=max(256, len(chunk.split()) * 25),
         )
         return np.array(wavs[0])
 
@@ -381,9 +386,107 @@ class VoxCpmModel(BaseModel):
         return np.array(out)
 
 
+class QwenFastModel(BaseModel):
+    def __init__(self, output_path: Path, model_path: Path) -> None:
+        super().__init__(output_path, model_path)
+        self._ref_file: Path | None = None
+        self._ref_text: str | None = None
+        self._fast_model = FasterQwen3TTS.from_pretrained(
+            "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+            device="cuda",
+        )
+
+    def load_model(self, ttsmodel: TtsVoiceF5) -> None:
+        self._ref_file = self.model_path / ttsmodel.value / "reference.wav"
+        with open(
+            self.model_path / ttsmodel.value / "reference.txt", "r", encoding="utf8"
+        ) as f:
+            self._ref_text = f.read()
+
+    def _inference_context(self):
+        return torch.no_grad()
+
+    def _chunk_to_wav(self, chunk: str) -> np.ndarray:
+        audio_list, _ = self._fast_model.generate_voice_clone(
+            text=chunk,
+            language="English",
+            ref_audio=str(self._ref_file),
+            ref_text=self._ref_text,
+        )
+        return np.array(audio_list[0])
+
+    def inference_generator_webm_opus(self, text: str):
+        """
+        Override to stream audio sub-chunks as they are generated token-by-token,
+        rather than waiting for each sentence to finish before yielding audio.
+        """
+        chunks = self._preprocess_text_and_chunks(text)
+        frame_rate = 24000
+
+        ffmpeg_cmd = [
+            "ffmpeg",
+            "-f", "s16le",
+            "-ar", str(frame_rate),
+            "-ac", "1",
+            "-i", "pipe:0",
+            "-c:a", "libopus",
+            "-f", "webm",
+            "-loglevel", "error",
+            "pipe:1",
+        ]
+        ffmpeg_proc = subprocess.Popen(
+            ffmpeg_cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=0,
+        )
+
+        def write_audio() -> None:
+            try:
+                pause_samples = int(0.7 * frame_rate)
+                silence = np.zeros(pause_samples, dtype=np.int16)
+                for i, chunk in enumerate(chunks):
+                    if i > 0:
+                        ffmpeg_proc.stdin.write(silence.tobytes())  # type: ignore[union-attr]
+                    for audio_chunk, _sr, _timing in self._fast_model.generate_voice_clone_streaming(
+                        text=chunk,
+                        language="English",
+                        ref_audio=str(self._ref_file),
+                        ref_text=self._ref_text,
+                        chunk_size=8,
+                    ):
+                        peak = np.max(np.abs(audio_chunk))
+                        if peak > 0:
+                            wav_int16 = np.int16(audio_chunk / peak * 32767)
+                        else:
+                            wav_int16 = np.zeros_like(audio_chunk, dtype=np.int16)
+                        ffmpeg_proc.stdin.write(wav_int16.tobytes())  # type: ignore[union-attr]
+            except Exception as e:
+                print(f"QwenFast writer thread exception: {e}")
+            finally:
+                try:
+                    ffmpeg_proc.stdin.close()  # type: ignore[union-attr]
+                except Exception:
+                    pass
+
+        writer_thread = threading.Thread(target=write_audio)
+        writer_thread.start()
+        try:
+            while True:
+                data = ffmpeg_proc.stdout.read(4096)  # type: ignore[union-attr]
+                if not data:
+                    break
+                yield data
+        finally:
+            ffmpeg_proc.kill()
+            writer_thread.join()
+
+
 @dataclass
 class TtsModelContainer:
     coqui_model: CoquiModel
     f5_model: F5Model
     vox_cpm_model: VoxCpmModel
     qwen_model: QwenTtsModel
+    qwen_fast_model: QwenFastModel
