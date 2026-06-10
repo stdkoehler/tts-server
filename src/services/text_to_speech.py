@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+import re
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -275,11 +276,49 @@ class F5Model(BaseModel):
         return np.array(out)
 
 
-class QwenTtsModel(BaseModel):
+class QwenBaseModel(BaseModel):
+    """
+    Shared base for all Qwen3-TTS variants.
+
+    Overrides text preprocessing for LLM-based TTS: Qwen3 understands punctuation
+    natively, so we leave colons, ellipses, and commas intact and only split on
+    paragraph breaks rather than every sentence boundary.
+    """
+
     def __init__(self, output_path: Path, model_path: Path) -> None:
         super().__init__(output_path, model_path)
         self._ref_file: Path | None = None
         self._ref_text: str | None = None
+
+    def _preprocess_text_and_chunks(self, text: str) -> list[str]:
+        text = text.replace("*", "").replace("---", "").replace("\\", "")
+
+        # Shadowrun terms
+        text = text.replace("IC", "ice").replace("ICE", "ice")
+
+        # Only split on paragraph breaks — sentence punctuation is left intact
+        # for Qwen3 to handle with its own prosody model.
+        chunks = [
+            chunk.strip()
+            for chunk in re.split(r"\n\n+", text)
+            if any(c.isalpha() for c in chunk)
+        ]
+        return chunks or [text.strip()]
+
+    def load_model(self, ttsmodel: TtsVoiceF5) -> None:
+        self._ref_file = self.model_path / ttsmodel.value / "reference.wav"
+        with open(
+            self.model_path / ttsmodel.value / "reference.txt", "r", encoding="utf8"
+        ) as f:
+            self._ref_text = f.read()
+
+    def _inference_context(self):
+        return torch.no_grad()
+
+
+class QwenTtsModel(QwenBaseModel):
+    def __init__(self, output_path: Path, model_path: Path) -> None:
+        super().__init__(output_path, model_path)
         self._voice_clone_prompt: list | None = None
         self._qwen_model = Qwen3TTSModel.from_pretrained(
             "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
@@ -291,26 +330,13 @@ class QwenTtsModel(BaseModel):
         )
 
     def load_model(self, ttsmodel: TtsVoiceF5) -> None:
-        self._ref_file = self.model_path / ttsmodel.value / "reference.wav"
-        with open(
-            self.model_path / ttsmodel.value / "reference.txt", "r", encoding="utf8"
-        ) as f:
-            reference_text = f.read()
-        self._ref_text = reference_text
-
+        super().load_model(ttsmodel)
         self._voice_clone_prompt = self._qwen_model.create_voice_clone_prompt(
             ref_audio=str(self._ref_file),
             ref_text=self._ref_text,
         )
 
-    def _inference_context(self):
-        """
-        Use torch.no_grad() to disable gradient calculation during inference.
-        This reduces memory usage and speeds up computations, as gradients are not needed for TTS inference.
-        """
-        return torch.no_grad()
-
-    def _chunk_to_wav(self, chunk):
+    def _chunk_to_wav(self, chunk: str) -> np.ndarray:
         wavs, _ = self._qwen_model.generate_voice_clone(
             text=chunk,
             language="English",
@@ -386,25 +412,13 @@ class VoxCpmModel(BaseModel):
         return np.array(out)
 
 
-class QwenFastModel(BaseModel):
+class QwenFastModel(QwenBaseModel):
     def __init__(self, output_path: Path, model_path: Path) -> None:
         super().__init__(output_path, model_path)
-        self._ref_file: Path | None = None
-        self._ref_text: str | None = None
         self._fast_model = FasterQwen3TTS.from_pretrained(
             "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
             device="cuda",
         )
-
-    def load_model(self, ttsmodel: TtsVoiceF5) -> None:
-        self._ref_file = self.model_path / ttsmodel.value / "reference.wav"
-        with open(
-            self.model_path / ttsmodel.value / "reference.txt", "r", encoding="utf8"
-        ) as f:
-            self._ref_text = f.read()
-
-    def _inference_context(self):
-        return torch.no_grad()
 
     def _chunk_to_wav(self, chunk: str) -> np.ndarray:
         audio_list, _ = self._fast_model.generate_voice_clone(
@@ -444,6 +458,8 @@ class QwenFastModel(BaseModel):
 
         def write_audio() -> None:
             try:
+                # Short pause between paragraphs — Qwen3 already produces natural
+                # prosodic breaks at sentence boundaries within each chunk.
                 pause_samples = int(0.7 * frame_rate)
                 silence = np.zeros(pause_samples, dtype=np.int16)
                 for i, chunk in enumerate(chunks):
