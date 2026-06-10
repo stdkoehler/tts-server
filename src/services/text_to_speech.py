@@ -456,11 +456,12 @@ class QwenFastModel(BaseModel):
                         ref_text=self._ref_text,
                         chunk_size=8,
                     ):
-                        peak = np.max(np.abs(audio_chunk))
-                        if peak > 0:
-                            wav_int16 = np.int16(audio_chunk / peak * 32767)
-                        else:
-                            wav_int16 = np.zeros_like(audio_chunk, dtype=np.int16)
+                        # Use a fixed scale instead of per-chunk normalization.
+                        # The codec decoder outputs float audio in [-1, 1]; normalizing
+                        # each chunk independently amplifies the near-silence tail of the
+                        # last word (and the appended silence frames) to full volume,
+                        # producing audible artifacts especially on short sentences.
+                        wav_int16 = np.clip(audio_chunk * 32767, -32767, 32767).astype(np.int16)
                         ffmpeg_proc.stdin.write(wav_int16.tobytes())  # type: ignore[union-attr]
             except Exception as e:
                 print(f"QwenFast writer thread exception: {e}")
